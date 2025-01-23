@@ -93,7 +93,7 @@ def process_jdos_allq_k_point(i_k_point,evs, chem_pot, k_weights, sigma, tempera
 
     return jdos_k
 
-def calculate_and_plot_jdos_q0_parallel(aimsout, dirname, energy_min, energy_max, num_bins, sigma, n_spin, temperature, fermi_mode, output_filename="jdos.txt"):
+def calculate_and_plot_jdos_q0_parallel(aimsout, dirname, energy_min, energy_max, num_bins, sigma, n_spin, temperature, fermi_mode, output_filename="jdos.txt", n_jobs=-1):
     """
     Calculate and plot the q=0 Joint Density of States (JDOS) with Gaussian smearing, using parallelism over k-points.
 
@@ -116,7 +116,7 @@ def calculate_and_plot_jdos_q0_parallel(aimsout, dirname, energy_min, energy_max
     # Use multiprocessing to calculate JDOS contributions for each k-point
 
     for i_spin in range(n_spin):
-        results = Parallel(n_jobs=-1)(
+        results = Parallel(n_jobs=n_jobs)(
             delayed(process_jdos_q0_k_point)(
                 evs[i_k_point, :], chem_pot, k_weights[i_k_point], sigma, temperature, energy_max, energy_bins, n_spin, fermi_mode
             )
@@ -143,7 +143,7 @@ def calculate_and_plot_jdos_q0_parallel(aimsout, dirname, energy_min, energy_max
     plt.tight_layout()
     plt.savefig("jdos_q0.pdf")
 
-def calculate_and_plot_jdos_allq_parallel(aimsout, dirname, energy_min, energy_max, num_bins, sigma, n_spin, temperature, fermi_mode, output_filename="jdos.txt"):
+def calculate_and_plot_jdos_allq_parallel(aimsout, dirname, energy_min, energy_max, num_bins, sigma, n_spin, temperature, fermi_mode, output_filename="jdos.txt", n_jobs=-1):
     """
     Calculate and plot the q=0 Joint Density of States (JDOS) with Gaussian smearing, using parallelism over k-points.
 
@@ -165,7 +165,7 @@ def calculate_and_plot_jdos_allq_parallel(aimsout, dirname, energy_min, energy_m
     # Use multiprocessing to calculate JDOS contributions for each k-point
 
     for i_spin in range(n_spin):
-        results = Parallel(n_jobs=-1)(
+        results = Parallel(n_jobs=n_jobs)(
             delayed(process_jdos_allq_k_point)(
                 i_k_point, evs, chem_pot, k_weights, sigma, temperature, energy_max, energy_bins, n_spin, fermi_mode
             )

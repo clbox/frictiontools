@@ -142,7 +142,7 @@ def calculate_friction_tensor_for_k_point(i_k_point, i_spin, n_atoms, friction_i
 
     return local_friction_tensor
 
-def calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode):
+def calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, n_jobs=-1):
     # Use parallelism to calculate the friction tensor for each k-point
     friction_indices = get_friction_indices(friction_aimsout)
 
@@ -154,7 +154,7 @@ def calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spi
     chem_pot, evs = parse_ev_data(friction_dirname)
 
     for i_spin in range(n_spin):
-        results = Parallel(n_jobs=-1)(
+        results = Parallel(n_jobs=n_jobs)(
             delayed(calculate_friction_tensor_for_k_point)(
                 i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma, temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode
             )

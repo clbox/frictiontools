@@ -1,6 +1,6 @@
 import os
 import numpy as np
-
+from frictiontools.constants import boltzmann_kB
 
 def gaussian_function(x,x0,s):
     return 1./np.sqrt(2*np.pi*s*s)*np.exp(-0.5*(((x-x0) / (s))**2))
@@ -18,7 +18,7 @@ def fermi_pop(x, x0, T):
     Returns:
         float: Fermi population.
     """
-    boltzmann_kB = 8.617333262145e-5  # Boltzmann constant in eV/K
+
 
     if T < np.finfo(float).tiny:  # Check if temperature is near zero
         if x < x0:

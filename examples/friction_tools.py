@@ -14,21 +14,22 @@ from frictiontools.dos import output_dos
 from frictiontools.jdos import calculate_and_plot_jdos_q0_parallel, calculate_and_plot_jdos_allq_parallel
 from frictiontools.friction_tensor import * 
 from frictiontools.constants import *
-
+from frictiontools.epc import calculate_eliashberg
 
 # Todo check bounds on looping states (base 0)
 # Todo:  FHI-aims friction EPC based restart
 # Todo: Detailed information on what excitations are being included
 
-# TODO: Density of States
-# TODO: Joint - Density of States - q=0
-# TODO: Joint - Density of States - all q
+# TODO: Vibrational energy Evib
+# TODO: 
 
 #
 if __name__ == "__main__":
-    friction_dirname = "friction/"
+    friction_dirname = "friction_smaller/"
     friction_aimsout = friction_dirname+"aims.out"
     normal_mode_filename = "vibrations/normal_modes"
+
+    n_jobs = -1
 
     n_spin = 1 # Number of spin channels, 1 = spin none calculation
     sigma = 0.05 #eV  # Broadening width of delta function(s) in friction evaluation
@@ -49,19 +50,19 @@ if __name__ == "__main__":
     chem_pot, evs = parse_ev_data(friction_dirname)
 
     # Get hbar omega for each mode
-    #perturbing_energies = parse_perturbing_energies(normal_mode_filename)
+    perturbing_energies = parse_perturbing_energies(normal_mode_filename)
     # perturbing_energies = np.array([0.245])
-    perturbing_energies = np.linspace(-1,1,100)
+    # perturbing_energies = np.linspace(-1,1,100)
 
     print_system_parameters(n_k_points, k_weights, perturbing_energies, friction_masses, friction_indices, friction_symbols, n_atoms, 
                             ndims, sigma, temperature, chem_pot, friction_max_energy, friction_aimsout, normal_mode_filename)
 
     dos_grid, dos = output_dos(evs, chem_pot, k_weights, num_bins=500, energy_range=np.array([-6,2]), sigma = 0.05)
-    calculate_and_plot_jdos_q0_parallel(friction_aimsout, friction_dirname,-1, 1, 500, 0.01, n_spin, temperature, fermi_mode)
-    calculate_and_plot_jdos_allq_parallel(friction_aimsout, friction_dirname,-1, 1, 500, 0.01, n_spin, temperature, fermi_mode)
+    calculate_and_plot_jdos_q0_parallel(friction_aimsout, friction_dirname,-1, 1, 500, 0.01, n_spin, temperature, fermi_mode, n_jobs = n_jobs)
+    calculate_and_plot_jdos_allq_parallel(friction_aimsout, friction_dirname,-1, 1, 500, 0.01, n_spin, temperature, fermi_mode, n_jobs = n_jobs)
 
     #friction_tensor = calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies)
-    friction_tensor = calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode)
+    friction_tensor = calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, n_jobs=n_jobs)
 
 
     relaxation_tensor = np.zeros_like(friction_tensor) # s-1
@@ -76,6 +77,10 @@ if __name__ == "__main__":
 
     plot_relaxation_rates(np.real(projected_tensor),perturbing_energies)
 
-    linewidths = output_linewidth_data(projected_tensor, perturbing_energies, mode="grid")#, mode="normal_modes")
+    #linewidths = output_linewidth_data(projected_tensor, perturbing_energies, mode="grid")#, mode="normal_modes")
+    linewidths = output_linewidth_data(projected_tensor, perturbing_energies, mode="normal_modes")
 
-
+    eliashberg_function, lambda_, Tc = calculate_eliashberg(linewidths, perturbing_energies)
+    print("Eliashberg Spectral Function (α²F(ω)):", eliashberg_function)
+    print("Electron-Phonon Coupling Strength (λ):", lambda_)
+    print(f"Superconducting Critical Temperature (Tc): {Tc:.2f} K")
