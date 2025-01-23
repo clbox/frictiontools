@@ -91,7 +91,8 @@ if __name__ == "__main__":
 
     
     omega_values = perturbing_energy_grid/hbar
-    alpha2_F_values = calculate_alpha2_F_gaussian(omega_values, linewidths, perturbing_energies, dos_fermi, n_q_points, sigma)
+    alpha2_F_values = calculate_alpha2_F_gaussian(omega_values, linewidths, perturbing_energies, dos_fermi, n_q_points, sigma/hbar)
+    print(alpha2_F_values)
     plot_eliashberg_function(omega_values*hbar, alpha2_F_values, output_file="eliashberg_function.pdf")
     # print("Eliashberg Spectral Function (α²F(ω)):", eliashberg_function)
     # print("Electron-Phonon Coupling Strength (λ):", lambda_)
