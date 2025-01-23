@@ -78,3 +78,32 @@ def output_dos(eigenvalues, chemical_potential, k_weights, num_bins=500, energy_
     plot_dos(energies, dos, "dos.pdf")
 
     return energies, dos
+
+def calculate_dos_fermi(eigenvalues, k_weights, fermi_energy, sigma=0.01):
+    """
+    Calculate the density of states (DOS) at the Fermi level.
+    
+    Args:
+        eigenvalues (ndarray): Array of shape (n_k_points, n_states) containing eigenvalues in eV.
+        k_weights (ndarray): Array of shape (n_k_points,) containing the k-point weights.
+        fermi_energy (float): Fermi level energy in eV.
+        sigma (float): Gaussian smearing parameter in eV (default: 0.01 eV).
+        
+    Returns:
+        float: The density of states at the Fermi level (in states/eV).
+    """
+    n_k_points, n_states = eigenvalues.shape
+    dos = 0.0
+    
+    # Iterate over k-points
+    for i_k in range(n_k_points):
+        # Iterate over states
+        for i_state in range(n_states):
+            # Gaussian smearing function
+            delta = np.exp(-((eigenvalues[i_k, i_state] - fermi_energy) ** 2) / (2 * sigma ** 2))
+            delta /= np.sqrt(2 * np.pi) * sigma
+            
+            # Weighted contribution to DOS
+            dos += k_weights[i_k] * delta
+    
+    return dos
