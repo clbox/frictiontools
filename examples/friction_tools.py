@@ -25,7 +25,7 @@ from frictiontools.epc import calculate_epc_strength_mode, calculate_alpha2_F_ga
 
 #
 if __name__ == "__main__":
-    friction_dirname = "friction_smaller/"
+    friction_dirname = "friction/"
     friction_aimsout = friction_dirname+"aims.out"
     normal_mode_filename = "vibrations/normal_modes"
 
