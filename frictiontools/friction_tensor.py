@@ -6,7 +6,7 @@ from frictiontools.constants import *
 from frictiontools.utils import *
 from frictiontools.fermi_integral import *
 
-def calculate_friction(g, g_prime, evs, n_spin, chem_pot, k_weight, sigma, temperature, energy_cutoff, perturbing_energies, fermi_mode):
+def calculate_friction(g, g_prime, evs, n_spin, chem_pot, k_weight, sigma, temperature, energy_cutoff, perturbing_energies, fermi_mode, expression):
    
     n_states, _,  = g.shape
 
@@ -17,40 +17,48 @@ def calculate_friction(g, g_prime, evs, n_spin, chem_pot, k_weight, sigma, tempe
 
     friction = np.zeros(len(perturbing_energies), dtype=np.complex128)
 
-    for i in range(minimum_state, max_occupied_state):
-        for j in range(min_unoccupied_state,maximum_state):
+    if expression == 'default':
+        for i in range(minimum_state, max_occupied_state):
+            for j in range(min_unoccupied_state,maximum_state):
 
-            epsilon = evs[j] - evs[i]
+                epsilon = evs[j] - evs[i]
+                if abs(epsilon)<1e-30:
+                    continue
+                # Exclude negative excitations when using fi-fj , since they are included implicitly
+                if epsilon<0:
+                    continue
+                
+                fermi_factor = evaluate_fermi_factor(evs[i], evs[j], chem_pot, temperature, perturbing_energies, fermi_mode)
+                fermi_factor = fermi_factor * (2/n_spin)
+                # if abs(fermi_factor)<0.0001:
+                #     continue
+                nac_cmplx = np.conj(g[i,j]) * g_prime[i,j] 
 
+                friction_tmp = nac_cmplx * delta_function(epsilon, perturbing_energies, sigma, "gaussian") * fermi_factor 
 
-            if abs(epsilon)<1e-30:
-                continue
-            
-            # Exclude negative excitations when using fi-fj , since they are included implicitly
-            if epsilon<0:
-                continue
+                friction[:] += friction_tmp
+        friction[:] = friction[:] * k_weight * np.pi * hbar
+    elif expression == 'allen_low_temperature':
+        assert temperature==0., "Allen formula is only valid at 0 K"
+        friction_tmp = np.zeros(len(perturbing_energies), dtype=np.complex128)
+        for i in range(minimum_state, max_occupied_state):
+            for j in range(min_unoccupied_state,maximum_state):
 
-            
-            fermi_factor = evaluate_fermi_factor(evs[i], evs[j], chem_pot, temperature, perturbing_energies, fermi_mode)
-            fermi_factor = fermi_factor * (2/n_spin)
+                nac_cmplx = np.conj(g[i,j]) * g_prime[i,j] 
 
+                friction_tmp[:] = nac_cmplx * delta_function(evs[j], chem_pot, sigma, "gaussian") * delta_function(evs[i], chem_pot, sigma, "gaussian") 
 
-            # if abs(fermi_factor)<0.0001:
-            #     continue
-            
-            nac_cmplx = np.conj(g[i,j]) * g_prime[i,j] 
+                friction[:] += friction_tmp
 
-            friction_tmp = nac_cmplx * delta_function(epsilon, perturbing_energies, sigma, "gaussian") * fermi_factor 
+        friction[:] = friction[:] * k_weight * np.pi * hbar 
 
-            friction[:] += friction_tmp
-
-
-    friction[:] = friction[:] * k_weight * np.pi * hbar
-
+    else:
+        print("Expression not recognised")
+        return None
 
     return friction
 
-def calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode):
+def calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression='default'):
 
     friction_indices = get_friction_indices(friction_aimsout)
 
@@ -95,7 +103,7 @@ def calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma,
                             g = parse_epc_data_kpoint(friction_dirname, i_k_point, i_atom, i_cart, i_spin)
                         
                             g_prime = parse_epc_data_kpoint(friction_dirname, i_k_point, j_atom, j_cart, i_spin)
-                            friction[:] = calculate_friction(g, g_prime, evs[i_k_point,:], n_spin, chem_pot, k_weights[i_k_point], sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode)
+                            friction[:] = calculate_friction(g, g_prime, evs[i_k_point,:], n_spin, chem_pot, k_weights[i_k_point], sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression)
                             friction_tensor[i_coord,j_coord, :] += friction[:]
 
                             if i_coord>j_coord:
@@ -104,7 +112,7 @@ def calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma,
     friction_tensor = friction_tensor * (eV_to_J / (Ang_to_m)**2)   #kg s-1
     return friction_tensor
 
-def calculate_friction_tensor_for_k_point(i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma, temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode):
+def calculate_friction_tensor_for_k_point(i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma, temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode, expression='default'):
     # Initialize a local friction tensor for this k-point
     local_friction_tensor = np.zeros((len(friction_indices) * 3, len(friction_indices) * 3, len(perturbing_energies)), dtype=np.complex128)
     friction = np.zeros(max(1, len(perturbing_energies)), dtype=np.complex128)
@@ -133,7 +141,7 @@ def calculate_friction_tensor_for_k_point(i_k_point, i_spin, n_atoms, friction_i
                     g = parse_epc_data_kpoint(friction_dirname, i_k_point, i_atom, i_cart, i_spin)
                     g_prime = parse_epc_data_kpoint(friction_dirname, i_k_point, j_atom, j_cart, i_spin)
                     friction[:] = calculate_friction(
-                        g, g_prime, evs[i_k_point, :], n_spin, chem_pot, k_weights[i_k_point], sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode
+                        g, g_prime, evs[i_k_point, :], n_spin, chem_pot, k_weights[i_k_point], sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression
                     )
                     local_friction_tensor[i_coord, j_coord, :] += friction[:]
 
@@ -142,7 +150,7 @@ def calculate_friction_tensor_for_k_point(i_k_point, i_spin, n_atoms, friction_i
 
     return local_friction_tensor
 
-def calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, n_jobs=-1):
+def calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression='default', n_jobs=-1):
     # Use parallelism to calculate the friction tensor for each k-point
     friction_indices = get_friction_indices(friction_aimsout)
 
@@ -156,7 +164,7 @@ def calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spi
     for i_spin in range(n_spin):
         results = Parallel(n_jobs=n_jobs)(
             delayed(calculate_friction_tensor_for_k_point)(
-                i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma, temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode
+                i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma, temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode, expression
             )
             for i_k_point in range(n_k_points)
         )

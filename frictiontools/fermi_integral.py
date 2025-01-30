@@ -48,6 +48,7 @@ def delta_function(epsilon, x0, sigma, type="gaussian"):
 
 def find_max_occupied_state(evs, chem_pot, temperature, tolerance=1e-3):
     n_states = len(evs)
+    max_occupied_state = -1
     for i in range(n_states):
         if (fermi_pop(evs[i], chem_pot, temperature) > tolerance):
             max_occupied_state = i
@@ -55,6 +56,7 @@ def find_max_occupied_state(evs, chem_pot, temperature, tolerance=1e-3):
 
 def find_min_unoccupied_state(evs, chem_pot, temperature,  tolerance=1e-3):
     n_states = len(evs)
+    min_unoccupied_state = 0
     for i in range(n_states):
         if (fermi_pop(evs[i], chem_pot, temperature)<(1-tolerance)):
             min_unoccupied_state = i

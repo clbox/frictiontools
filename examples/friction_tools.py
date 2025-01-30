@@ -25,7 +25,7 @@ from frictiontools.epc import calculate_epc_strength_mode, calculate_alpha2_F_ga
 
 #
 if __name__ == "__main__":
-    friction_dirname = "friction/"
+    friction_dirname = "smaller_serial/"
     friction_aimsout = friction_dirname+"aims.out"
     normal_mode_filename = "vibrations/normal_modes"
 
@@ -33,8 +33,8 @@ if __name__ == "__main__":
     n_q_points = 1
 
     n_spin = 1 # Number of spin channels, 1 = spin none calculation
-    sigma = 0.05 #eV  # Broadening width of delta function(s) in friction evaluation
-    temperature = 300 #K 
+    sigma = 0.27 #eV  # Broadening width of delta function(s) in friction evaluation
+    temperature = 0 #K 
     friction_max_energy = 3.2 # eV
     fermi_mode = "diff"  #Fermi factor = fi - fj / ei - ej
 
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     print_system_parameters(n_k_points, k_weights, perturbing_energies, friction_masses, friction_indices, friction_symbols, n_atoms, 
                             ndims, sigma, temperature, chem_pot, friction_max_energy, friction_aimsout, normal_mode_filename)
 
-    dos_grid, dos = output_dos(evs, chem_pot, k_weights, num_bins=500, energy_range=np.array([-6,2]), sigma = 0.05)
+    dos_grid, dos = output_dos(evs, chem_pot, k_weights, num_bins=500, energy_range=[chem_pot-4,chem_pot+4], sigma = 0.05)
 
     dos_fermi = calculate_dos_fermi(evs, k_weights, chem_pot, sigma=0.01)
     print(f"DOS at Fermi level: {dos_fermi:.6f} states/eV")
@@ -67,7 +67,8 @@ if __name__ == "__main__":
     calculate_and_plot_jdos_allq_parallel(friction_aimsout, friction_dirname,-1, 1, 500, 0.01, n_spin, temperature, fermi_mode, n_jobs = n_jobs)
 
     #friction_tensor = calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies)
-    friction_tensor = calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, n_jobs=n_jobs)
+    expression = "allen_low_temperature"
+    friction_tensor = calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression, n_jobs=n_jobs)
 
 
     relaxation_tensor = np.zeros_like(friction_tensor) # s-1
