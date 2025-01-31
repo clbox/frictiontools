@@ -50,7 +50,7 @@ def save_dos(filename, energies, dos):
         for e, d in zip(energies, dos):
             file.write(f"{e:.6f}   {d:.6e}\n")
 
-def plot_dos(energies, dos, output_image="dos.pdf"):
+def plot_dos(energies, dos, chemical_potential, output_image="dos.pdf"):
     """
     Plot the DOS.
 
@@ -61,6 +61,7 @@ def plot_dos(energies, dos, output_image="dos.pdf"):
     """
     plt.figure(figsize=(8, 6))
     plt.plot(energies, dos, label="DOS", color="blue")
+    plt.axvline(chemical_potential, color="black", linestyle="--", label="Fermi level")
     plt.xlabel("Energy (eV)", fontsize=14)
     plt.ylabel("DOS", fontsize=14)
     plt.title("Density of States", fontsize=16)
@@ -75,7 +76,7 @@ def output_dos(eigenvalues, chemical_potential, k_weights, num_bins=500, energy_
 
     save_dos("dos.txt", energies, dos)
 
-    plot_dos(energies, dos, "dos.pdf")
+    plot_dos(energies, dos, chemical_potential, "dos.pdf")
 
     return energies, dos
 
