@@ -39,7 +39,7 @@ def process_jdos_q0_k_point(evs, chem_pot, k_weight, sigma, temperature, energy_
             fermi_factor = evaluate_fermi_factor(evs[i], evs[j], chem_pot, temperature, energy_bins, fermi_mode)
 
             fermi_factor = fermi_factor * (2/n_spin)
-            jdos_k[:] += fermi_factor * delta_function(epsilon, energy_bins, sigma, "gaussian")
+            jdos_k[:] += fermi_factor * delta_function(epsilon, energy_bins, sigma, 1, "gaussian")
 
 
     jdos_k[:] = jdos_k[:] * k_weight 
@@ -87,13 +87,13 @@ def process_jdos_allq_k_point(i_k_point,evs, chem_pot, k_weights, sigma, tempera
                 fermi_factor = fermi_factor * (2/n_spin)
 
             
-                jdos_k[:] += (fermi_factor * delta_function(epsilon, energy_bins, sigma, "gaussian"))*q_weight
+                jdos_k[:] += (fermi_factor * delta_function(epsilon, energy_bins, sigma, 1, "gaussian"))*q_weight
 
 
 
     return jdos_k
 
-def calculate_and_plot_jdos_q0_parallel(aimsout, dirname, energy_min, energy_max, num_bins, sigma, n_spin, temperature, fermi_mode, output_filename="jdos.txt", n_jobs=-1):
+def calculate_and_plot_jdos_q0_parallel(params, energy_min, energy_max, num_bins, output_filename="jdos.txt"):
     """
     Calculate and plot the q=0 Joint Density of States (JDOS) with Gaussian smearing, using parallelism over k-points.
 
@@ -106,6 +106,16 @@ def calculate_and_plot_jdos_q0_parallel(aimsout, dirname, energy_min, energy_max
         sigma (float): Gaussian smearing parameter (in eV).
         output_filename (str): Filename to save the JDOS data.
     """
+
+    aimsout = params.friction_aimsout
+    dirname = params.friction_dirname
+    n_spin = params.n_spin
+    sigma = params.sigma
+    temperature = params.temperature
+    fermi_mode = params.fermi_mode
+    n_jobs = params.n_jobs
+
+
 
     n_k_points, k_weights = parse_kpoints_and_weights(aimsout)
     chem_pot, evs = parse_ev_data(dirname)
@@ -141,7 +151,7 @@ def calculate_and_plot_jdos_q0_parallel(aimsout, dirname, energy_min, energy_max
     plt.tight_layout()
     plt.savefig("jdos_q0.pdf")
 
-def calculate_and_plot_jdos_allq_parallel(aimsout, dirname, energy_min, energy_max, num_bins, sigma, n_spin, temperature, fermi_mode, output_filename="jdos.txt", n_jobs=-1):
+def calculate_and_plot_jdos_allq_parallel(params, energy_min, energy_max, num_bins, output_filename="jdos.txt"):
     """
     Calculate and plot the q=0 Joint Density of States (JDOS) with Gaussian smearing, using parallelism over k-points.
 
@@ -154,6 +164,14 @@ def calculate_and_plot_jdos_allq_parallel(aimsout, dirname, energy_min, energy_m
         sigma (float): Gaussian smearing parameter (in eV).
         output_filename (str): Filename to save the JDOS data.
     """
+    aimsout = params.friction_aimsout
+    dirname = params.friction_dirname
+    n_spin = params.n_spin
+    sigma = params.sigma
+    temperature = params.temperature
+    fermi_mode = params.fermi_mode
+    n_jobs = params.n_jobs
+    
 
     n_k_points, k_weights = parse_kpoints_and_weights(aimsout)
     chem_pot, evs = parse_ev_data(dirname)

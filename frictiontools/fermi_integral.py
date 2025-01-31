@@ -1,6 +1,7 @@
 import numpy as np
 from frictiontools.constants import *
 from frictiontools.utils import *
+from scipy.special import hermite, factorial
 
 def find_evs_sensible_bounds(evs,chem_pot,max_energy_from_fermi):
     # We find indices for upper and lower bounds of eigenvalues
@@ -36,10 +37,41 @@ def delta_function_gaussian(x, x0, s):
     gaussian = (np.exp(-0.5 * ((x - x0) ** 2) / (s ** 2)) / (s * sqrt_pi)) * one_over_sqrt2
     return gaussian
 
-def delta_function(epsilon, x0, sigma, type="gaussian"):
+def delta_function_methfessel_paxton(x, x0, sigma, order=1):
+    """
+    Compute the Methfessel-Paxton smearing function.
+
+    Parameters:
+    - epsilon: Energy difference from the Fermi level (array-like)
+    - sigma: Smearing width (float, in eV)
+    - order: Order of the Methfessel-Paxton expansion (int)
+
+    Returns:
+    - f: Smearing function values
+    """
+    epsilon = x-x0
+
+    eta = epsilon / sigma  # Scaled energy
+    gauss = np.exp(-eta**2) / np.sqrt(np.pi)  # Gaussian core function
+
+    # Initialize smearing function
+    f = 0.5 * (1 + np.erf(eta))  # Zeroth order: Gaussian smearing
+
+    # Add higher order corrections
+    for n in range(1, order + 1):
+        Hn = hermite(n)(eta)  # Hermite polynomial H_n(eta)
+        term = (-1) ** n * Hn * gauss / (2 ** n * factorial(n))
+        f += term
+
+    return f
+
+
+def delta_function(epsilon, x0, sigma, order=1, type="gaussian"):
 
     if type=="gaussian":
         result = delta_function_gaussian(epsilon, x0, sigma)
+    elif type=="methfessel_paxton":
+        result = delta_function_methfessel_paxton(epsilon, x0, sigma, order)
     else:
         print("unknown type of delta function")
         

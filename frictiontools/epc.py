@@ -31,7 +31,7 @@ def calculate_epc_strength_mode(linewidths, dos_fermi, perturbing_energies, n_sp
 
     # Calculate mode-resolved lambda
     #lambda_modes = ((n_spin/2.0) / (dos_fermi * perturbing_energies)) * linewidths
-    lambda_modes = ((n_spin/2.0) / (np.pi * dos_fermi)) * (linewidths/non_zero_frequencies**2)
+    lambda_modes = ((n_spin/2.0) / (np.pi * dos_fermi)) * (linewidths/perturbing_energies**2)
 
     # Calculate total lambda
     lambda_total = np.sum(lambda_modes)
@@ -68,7 +68,6 @@ def calculate_alpha2_F_gaussian(omega_values, linewidths, perturbing_energies, d
     
     return alpha2_F_values
 
-
 def plot_eliashberg_function(omega_values, alpha2_F_values, output_file="eliashberg_function.pdf"):
     """
     Plot the Eliashberg spectral function α²F(ω).
@@ -92,3 +91,23 @@ def plot_eliashberg_function(omega_values, alpha2_F_values, output_file="eliashb
     print(f"Eliashberg function plot saved as: {output_file}")
     
     # Show the plot
+
+def calculate_critical_temperature(lambda_epc, debye_temperature, mu_star=0.1):
+    """
+    Calculate the superconducting critical temperature (Tc) using the McMillan equation.
+
+    Parameters:
+    - lambda_epc (float): Electron-phonon coupling constant (λ)
+    - debye_temperature (float): Debye temperature (Θ_D) in Kelvin
+    - mu_star (float, optional): Coulomb pseudopotential (default: 0.1)
+
+    Returns:
+    - Tc (float): Superconducting critical temperature in Kelvin
+    """
+    if lambda_epc <= 0:
+        return 0.0  # No superconductivity for λ <= 0
+    
+    exponent = (-1.04 * (1 + lambda_epc)) / (lambda_epc - mu_star * (1 + 0.62 * lambda_epc))
+    Tc = (debye_temperature / 1.45) * np.exp(exponent)
+    
+    return max(Tc, 0.0)  # Ensure Tc is non-negative

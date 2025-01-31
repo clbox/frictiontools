@@ -35,7 +35,7 @@ def calculate_friction(g, g_prime, evs, n_spin, chem_pot, k_weight, sigma, tempe
                 #     continue
                 nac_cmplx = np.conj(g[i,j]) * g_prime[i,j] 
 
-                friction_tmp = nac_cmplx * delta_function(epsilon, perturbing_energies, sigma, "gaussian") * fermi_factor 
+                friction_tmp = nac_cmplx * delta_function(epsilon, perturbing_energies, sigma, 1, "gaussian") * fermi_factor 
 
                 friction[:] += friction_tmp
         friction[:] = friction[:] * k_weight * np.pi * hbar
@@ -47,7 +47,7 @@ def calculate_friction(g, g_prime, evs, n_spin, chem_pot, k_weight, sigma, tempe
 
                 nac_cmplx = np.conj(g[i,j]) * g_prime[i,j] 
 
-                friction_tmp[:] = (2/n_spin) * nac_cmplx * delta_function(evs[j], chem_pot, sigma, "gaussian") * delta_function(evs[i], chem_pot, sigma, "gaussian") 
+                friction_tmp[:] = (2/n_spin) * nac_cmplx * delta_function(evs[j], chem_pot, sigma, 1, "gaussian") * delta_function(evs[i], chem_pot, sigma, 1, "gaussian") 
 
                 friction[:] += friction_tmp
 
@@ -151,8 +151,21 @@ def calculate_friction_tensor_for_k_point(i_k_point, i_spin, n_atoms, friction_i
 
     return local_friction_tensor
 
-def calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression='default', n_jobs=-1):
+def calculate_friction_tensor_parallel(params):
     # Use parallelism to calculate the friction tensor for each k-point
+
+    friction_aimsout = params.friction_aimsout
+    friction_dirname = params.friction_dirname
+    n_spin = params.n_spin
+    sigma = params.sigma
+    temperature = params.temperature
+    friction_max_energy = params.friction_max_energy
+    perturbing_energies = params.perturbing_energies
+    fermi_mode = params.fermi_mode
+    expression = params.expression
+    n_jobs = params.n_jobs
+    
+
     friction_indices = get_friction_indices(friction_aimsout)
 
     n_atoms = get_number_of_atoms(friction_aimsout)
