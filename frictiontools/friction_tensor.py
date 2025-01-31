@@ -42,12 +42,12 @@ def calculate_friction(g, g_prime, evs, n_spin, chem_pot, k_weight, sigma, tempe
     elif expression == 'allen_low_temperature':
         assert temperature==0., "Allen formula is only valid at 0 K"
         friction_tmp = np.zeros(len(perturbing_energies), dtype=np.complex128)
-        for i in range(minimum_state, max_occupied_state):
-            for j in range(min_unoccupied_state,maximum_state):
+        for i in range(minimum_state, max_occupied_state+1):
+            for j in range(min_unoccupied_state,maximum_state+1):
 
                 nac_cmplx = np.conj(g[i,j]) * g_prime[i,j] 
 
-                friction_tmp[:] = nac_cmplx * delta_function(evs[j], chem_pot, sigma, "gaussian") * delta_function(evs[i], chem_pot, sigma, "gaussian") 
+                friction_tmp[:] = (2/n_spin) * nac_cmplx * delta_function(evs[j], chem_pot, sigma, "gaussian") * delta_function(evs[i], chem_pot, sigma, "gaussian") 
 
                 friction[:] += friction_tmp
 

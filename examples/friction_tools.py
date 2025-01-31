@@ -68,7 +68,7 @@ if __name__ == "__main__":
     calculate_and_plot_jdos_allq_parallel(friction_aimsout, friction_dirname,-1, 1, 500, sigma, n_spin, temperature, fermi_mode, n_jobs = n_jobs)
 
     #friction_tensor = calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies)
-    #expression = "allen_low_temperature"
+    # expression = "allen_low_temperature"
     expression = "default"
     friction_tensor = calculate_friction_tensor_parallel(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression, n_jobs=n_jobs)
 
