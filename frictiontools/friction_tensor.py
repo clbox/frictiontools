@@ -18,16 +18,17 @@ def calculate_friction(g, g_prime, evs, n_spin, chem_pot, k_weight, sigma, tempe
     friction = np.zeros(len(perturbing_energies), dtype=np.complex128)
 
     if expression == 'default':
-        for i in range(minimum_state, max_occupied_state):
-            for j in range(min_unoccupied_state,maximum_state):
-
+        for i in range(minimum_state, max_occupied_state+1):
+            for j in range(min_unoccupied_state,maximum_state+1):
+        # for i in range(0,n_states):
+        #     for j in range(0,n_states):
                 epsilon = evs[j] - evs[i]
                 if abs(epsilon)<1e-30:
                     continue
                 # Exclude negative excitations when using fi-fj , since they are included implicitly
                 if epsilon<0:
                     continue
-                
+
                 fermi_factor = evaluate_fermi_factor(evs[i], evs[j], chem_pot, temperature, perturbing_energies, fermi_mode)
                 fermi_factor = fermi_factor * (2/n_spin)
                 # if abs(fermi_factor)<0.0001:

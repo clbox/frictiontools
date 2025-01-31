@@ -14,7 +14,7 @@ def process_jdos_q0_k_point(evs, chem_pot, k_weight, sigma, temperature, energy_
     Returns:
         ndarray: JDOS contribution for the given k-point.
     """
-
+    n_states = len(evs)
     max_occupied_state = find_max_occupied_state(evs, chem_pot, temperature)
     min_unoccupied_state = find_min_unoccupied_state(evs, chem_pot, temperature)
 
@@ -22,8 +22,8 @@ def process_jdos_q0_k_point(evs, chem_pot, k_weight, sigma, temperature, energy_
 
     jdos_k = np.zeros(len(energy_bins))
 
-    for i in range(minimum_state, max_occupied_state):
-        for j in range(min_unoccupied_state,maximum_state):
+    for i in range(minimum_state, max_occupied_state+1):
+        for j in range(min_unoccupied_state,maximum_state+1):
 
             epsilon = evs[j] - evs[i]
 
@@ -37,8 +37,8 @@ def process_jdos_q0_k_point(evs, chem_pot, k_weight, sigma, temperature, energy_
                 continue
 
             fermi_factor = evaluate_fermi_factor(evs[i], evs[j], chem_pot, temperature, energy_bins, fermi_mode)
+
             fermi_factor = fermi_factor * (2/n_spin)
-        
             jdos_k[:] += fermi_factor * delta_function(epsilon, energy_bins, sigma, "gaussian")
 
 
@@ -68,8 +68,8 @@ def process_jdos_allq_k_point(i_k_point,evs, chem_pot, k_weights, sigma, tempera
         minimum_state_kq, maximum_state_kq = find_bounded_states(evs[i_k_point2], chem_pot, energy_cutoff)
         q_weight = k_weights[i_k_point] * k_weights[i_k_point2]
 
-        for i in range(minimum_state_k, max_occupied_state_k):
-            for j in range(min_unoccupied_state_kq,maximum_state_kq):
+        for i in range(minimum_state_k, max_occupied_state_k+1):
+            for j in range(min_unoccupied_state_kq,maximum_state_kq+1):
 
                 epsilon = evs[i_k_point2,j] - evs[i_k_point,i]
 
@@ -111,8 +111,6 @@ def calculate_and_plot_jdos_q0_parallel(aimsout, dirname, energy_min, energy_max
     chem_pot, evs = parse_ev_data(dirname)
 
     energy_bins = np.linspace(energy_min, energy_max, num_bins + 1)
-
-
     # Use multiprocessing to calculate JDOS contributions for each k-point
 
     for i_spin in range(n_spin):

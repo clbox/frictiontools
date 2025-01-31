@@ -33,8 +33,8 @@ def delta_function_gaussian(x, x0, s):
     """
     sqrt_pi = np.sqrt(np.pi)
     one_over_sqrt2 = 1 / np.sqrt(2)
-    
-    return (np.exp(-0.5 * ((x - x0) ** 2) / (s ** 2)) / (s * sqrt_pi)) * one_over_sqrt2
+    gaussian = (np.exp(-0.5 * ((x - x0) ** 2) / (s ** 2)) / (s * sqrt_pi)) * one_over_sqrt2
+    return gaussian
 
 def delta_function(epsilon, x0, sigma, type="gaussian"):
 
@@ -48,9 +48,9 @@ def delta_function(epsilon, x0, sigma, type="gaussian"):
 
 def find_max_occupied_state(evs, chem_pot, temperature, tolerance=1e-3):
     n_states = len(evs)
-    max_occupied_state = -1
+    max_occupied_state = n_states
     for i in range(n_states):
-        if (fermi_pop(evs[i], chem_pot, temperature) > tolerance):
+        if (fermi_pop(evs[i], chem_pot, temperature) >=tolerance):
             max_occupied_state = i
     return max_occupied_state
 
@@ -58,9 +58,8 @@ def find_min_unoccupied_state(evs, chem_pot, temperature,  tolerance=1e-3):
     n_states = len(evs)
     min_unoccupied_state = 0
     for i in range(n_states):
-        if (fermi_pop(evs[i], chem_pot, temperature)<(1-tolerance)):
+        if (fermi_pop(evs[i], chem_pot, temperature)>=(1-tolerance)):
             min_unoccupied_state = i
-            break
     return min_unoccupied_state
 
 def find_bounded_states(evs, chem_pot, energy_cutoff):
@@ -75,21 +74,30 @@ def find_bounded_states(evs, chem_pot, energy_cutoff):
     Returns:
         tuple: Indices of the minimum and maximum states within the energy window.
     """
+    n_states = len(evs)
     # Define the energy window bounds
     lower_bound = chem_pot - 2 * energy_cutoff
     upper_bound = chem_pot + 2 * energy_cutoff
 
     # Initialize the minimum and maximum state indices to None
-    minimum_state = None
-    maximum_state = None
+    minimum_state = 0
+    maximum_state = 0
 
-    # Iterate over the energy eigenvalues to find the states within the window
+    # # Iterate over the energy eigenvalues to find the states within the window
+    # for i, ev in enumerate(evs):
+    #     if ev >= lower_bound and ev <= upper_bound:
+    #         if minimum_state is None or ev < evs[minimum_state]:
+    #             minimum_state = i
+    #         if maximum_state is None or ev > evs[maximum_state]:
+    #             maximum_state = i
+
     for i, ev in enumerate(evs):
-        if ev >= lower_bound and ev <= upper_bound:
-            if minimum_state is None or ev < evs[minimum_state]:
-                minimum_state = i
-            if maximum_state is None or ev > evs[maximum_state]:
-                maximum_state = i
+        if  ev <= lower_bound:
+            minimum_state = i
+    
+    for i, ev in enumerate(evs):
+        if  ev <= upper_bound:
+            maximum_state = i
 
     return minimum_state, maximum_state
 
