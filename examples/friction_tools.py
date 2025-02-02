@@ -1,12 +1,8 @@
 
 import numpy as np
-import scipy.sparse as sp
-import struct
-import os
-from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
+import time
 
-import frictiontools
 from frictiontools.aims_parse import get_friction_masses, get_friction_indices, extract_atomic_symbols, get_number_of_atoms, parse_kpoints_and_weights, parse_ev_data
 from frictiontools.vib_parse import parse_normal_modes, parse_perturbing_energies
 from frictiontools.dos import output_dos, calculate_dos_fermi
@@ -38,7 +34,7 @@ if __name__ == "__main__":
 
 
 
-    friction_dirname = "friction/"
+    friction_dirname = "friction/smaller_serial/"
     n_q_points = 1
     sigma = 0.6 # eV
     n_spin = 1
@@ -75,7 +71,11 @@ if __name__ == "__main__":
     #friction_tensor = calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies)
     # expression = "allen_low_temperature"
     # expression = "default"
+
+    start_time = time.time()
     friction_tensor = calculate_friction_tensor_parallel(params)
+    end_time = time.time()
+    print(f"Time taken to calculate friction tensor: {end_time-start_time:.2f} seconds")
 
     friction_masses = system_properties.friction_masses
     relaxation_tensor = np.zeros_like(friction_tensor) # s-1
