@@ -11,7 +11,6 @@ from frictiontools.friction_tensor import *
 from frictiontools.constants import *
 from frictiontools.epc import *
 from frictiontools.properties import * 
-
 # Todo check bounds on looping states (base 0)
 # Todo:  FHI-aims friction EPC based restart
 # Todo: Detailed information on what excitations are being included
@@ -34,7 +33,7 @@ if __name__ == "__main__":
 
 
 
-    friction_dirname = "friction/smaller_serial/"
+    friction_dirname = "friction/"
     n_q_points = 1
     sigma = 0.6 # eV
     n_spin = 1
@@ -68,20 +67,26 @@ if __name__ == "__main__":
     calculate_and_plot_jdos_q0_parallel(params, -1, 1, 500)
     calculate_and_plot_jdos_allq_parallel(params, -1, 1, 500)
 
-    #friction_tensor = calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies)
-    # expression = "allen_low_temperature"
-    # expression = "default"
+    #friction_tensor = calculate_friction_tensor_serial(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies)
 
     start_time = time.time()
+    #friction_tensor = calculate_friction_tensor_parallel(params)
     friction_tensor = calculate_friction_tensor_parallel(params)
     end_time = time.time()
     print(f"Time taken to calculate friction tensor: {end_time-start_time:.2f} seconds")
 
+
+
+
+
+
+
+    #  Processing the friction tensor
     friction_masses = system_properties.friction_masses
     relaxation_tensor = np.zeros_like(friction_tensor) # s-1
     for p, pe in enumerate(perturbing_energies):
         relaxation_tensor[:,:,p] = mass_weight_tensor(friction_tensor[:,:,p], friction_masses)
-    np.save("mass-weighted_friction.npy", relaxation_tensor/1e12) # convert to ps-1
+    #np.save("mass-weighted_friction.npy", relaxation_tensor/1e12) # convert to ps-1
     plot_relaxation_rates(np.real(relaxation_tensor),perturbing_energies, output_pdf="cartesian_tensor.pdf", output_txt="cartesian_tensor.txt")
     
     projected_tensor = np.zeros_like(relaxation_tensor) # s-1

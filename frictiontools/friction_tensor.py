@@ -6,6 +6,8 @@ from frictiontools.constants import *
 from frictiontools.utils import *
 from frictiontools.fermi_integral import *
 
+from mpi4py import MPI
+
 def calculate_friction(g, g_prime, evs, n_spin, chem_pot, k_weight, sigma, temperature, energy_cutoff, perturbing_energies, fermi_mode, expression):
    
     n_states, _,  = g.shape
@@ -59,7 +61,140 @@ def calculate_friction(g, g_prime, evs, n_spin, chem_pot, k_weight, sigma, tempe
 
     return friction
 
-def calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression='default'):
+def calculate_friction_tensor_for_k_point(i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma, temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode, expression='default'):
+    # Initialize a local friction tensor for this k-point
+    local_friction_tensor = np.zeros((len(friction_indices) * 3, len(friction_indices) * 3, len(perturbing_energies)), dtype=np.complex128)
+    friction = np.zeros(max(1, len(perturbing_energies)), dtype=np.complex128)
+    i_coord = -1
+    for i_atom in range(n_atoms):
+        if i_atom not in friction_indices:
+            continue
+
+        for i_cart in range(3):
+            i_coord += 1
+
+            j_coord = -1
+            for j_atom in range(n_atoms):
+                if j_atom not in friction_indices:
+                    continue
+
+                for j_cart in range(3):
+                    j_coord += 1
+
+                    if j_coord < i_coord:
+                        continue
+
+                    # if i_coord != 11 and j_coord != 1:
+                    #     continue
+
+                    g = parse_epc_data_kpoint(friction_dirname, i_k_point, i_atom, i_cart, i_spin)
+                    g_prime = parse_epc_data_kpoint(friction_dirname, i_k_point, j_atom, j_cart, i_spin)
+                    friction[:] = calculate_friction(
+                        g, g_prime, evs[i_k_point, :], n_spin, chem_pot, k_weights[i_k_point], sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression
+                    )
+                    local_friction_tensor[i_coord, j_coord, :] += friction[:]
+
+                    if i_coord > j_coord:
+                        local_friction_tensor[j_coord, i_coord, :] += np.conj(friction[:])
+
+    return local_friction_tensor
+
+def calculate_friction_tensor_parallel(params):
+    # Use parallelism to calculate the friction tensor for each k-point
+
+    friction_aimsout = params.friction_aimsout
+    friction_dirname = params.friction_dirname
+    n_spin = params.n_spin
+    sigma = params.sigma
+    temperature = params.temperature
+    friction_max_energy = params.friction_max_energy
+    perturbing_energies = params.perturbing_energies
+    fermi_mode = params.fermi_mode
+    expression = params.expression
+    n_jobs = params.n_jobs
+
+
+    friction_indices = get_friction_indices(friction_aimsout)
+
+    n_atoms = get_number_of_atoms(friction_aimsout)
+    n_friction_atoms = len(friction_indices)
+    ndims = 3 * n_friction_atoms
+
+    n_k_points, k_weights = parse_kpoints_and_weights(friction_aimsout)
+    chem_pot, evs = parse_ev_data(friction_dirname)
+
+    for i_spin in range(n_spin):
+        results = Parallel(n_jobs=n_jobs)(
+            delayed(calculate_friction_tensor_for_k_point)(
+                i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma, temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode, expression
+            )
+            for i_k_point in range(n_k_points)
+        )
+
+        # Sum the results from all k-points
+        global_friction_tensor = np.sum(results, axis=0)
+
+    global_friction_tensor = global_friction_tensor * (eV_to_J / (Ang_to_m)**2)   #kg s-1
+    return global_friction_tensor
+
+def calculate_friction_tensor_parallel_mpi(params):
+    """
+    Calculate the friction tensor using MPI parallelism.
+    Each process handles a subset of k-points, and results are summed at rank 0.
+    """
+
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+
+    # Extract parameters
+    friction_aimsout = params.friction_aimsout
+    friction_dirname = params.friction_dirname
+    n_spin = params.n_spin
+    sigma = params.sigma
+    temperature = params.temperature
+    friction_max_energy = params.friction_max_energy
+    perturbing_energies = params.perturbing_energies
+    fermi_mode = params.fermi_mode
+    expression = params.expression
+
+    # Get friction indices
+    friction_indices = get_friction_indices(friction_aimsout)
+    n_atoms = get_number_of_atoms(friction_aimsout)
+    n_friction_atoms = len(friction_indices)
+    ndims = 3 * n_friction_atoms
+
+    # Get k-points and eigenvalues
+    n_k_points, k_weights = parse_kpoints_and_weights(friction_aimsout)
+    chem_pot, evs = parse_ev_data(friction_dirname)
+
+    # Distribute k-points across MPI ranks
+    k_points_per_rank = np.array_split(range(n_k_points), size)[rank]
+
+    # Local storage for results
+    local_friction_tensor = np.zeros((ndims, ndims, len(perturbing_energies)), dtype=np.complex128)
+
+    # Compute friction tensor for assigned k-points
+    for i_spin in range(n_spin):
+        for i_k_point in k_points_per_rank:
+            local_friction_tensor += calculate_friction_tensor_for_k_point(
+                i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma,
+                temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode, expression
+            )
+
+    # Reduce (sum) results across all ranks to rank 0
+    global_friction_tensor = np.zeros_like(local_friction_tensor)
+    comm.Reduce(local_friction_tensor, global_friction_tensor, op=MPI.SUM, root=0)
+
+    # Convert to correct units
+    if rank == 0:
+        global_friction_tensor *= (eV_to_J / (Ang_to_m)**2)  # kg s^-1
+        return global_friction_tensor
+    else:
+        return None  # Non-root ranks return nothing
+    
+    
+def calculate_friction_tensor_serial(friction_aimsout, friction_dirname, n_spin, sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression='default'):
 
     friction_indices = get_friction_indices(friction_aimsout)
 
@@ -112,82 +247,6 @@ def calculate_friction_tensor(friction_aimsout, friction_dirname, n_spin, sigma,
 
     friction_tensor = friction_tensor * (eV_to_J / (Ang_to_m)**2)   #kg s-1
     return friction_tensor
-
-def calculate_friction_tensor_for_k_point(i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma, temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode, expression='default'):
-    # Initialize a local friction tensor for this k-point
-    local_friction_tensor = np.zeros((len(friction_indices) * 3, len(friction_indices) * 3, len(perturbing_energies)), dtype=np.complex128)
-    friction = np.zeros(max(1, len(perturbing_energies)), dtype=np.complex128)
-    i_coord = -1
-    for i_atom in range(n_atoms):
-        if i_atom not in friction_indices:
-            continue
-
-        for i_cart in range(3):
-            i_coord += 1
-
-            j_coord = -1
-            for j_atom in range(n_atoms):
-                if j_atom not in friction_indices:
-                    continue
-
-                for j_cart in range(3):
-                    j_coord += 1
-
-                    if j_coord < i_coord:
-                        continue
-
-                    # if i_coord != 11 and j_coord != 1:
-                    #     continue
-
-                    g = parse_epc_data_kpoint(friction_dirname, i_k_point, i_atom, i_cart, i_spin)
-                    g_prime = parse_epc_data_kpoint(friction_dirname, i_k_point, j_atom, j_cart, i_spin)
-                    friction[:] = calculate_friction(
-                        g, g_prime, evs[i_k_point, :], n_spin, chem_pot, k_weights[i_k_point], sigma, temperature, friction_max_energy, perturbing_energies, fermi_mode, expression
-                    )
-                    local_friction_tensor[i_coord, j_coord, :] += friction[:]
-
-                    if i_coord > j_coord:
-                        local_friction_tensor[j_coord, i_coord, :] += np.conj(friction[:])
-
-    return local_friction_tensor
-
-def calculate_friction_tensor_parallel(params):
-    # Use parallelism to calculate the friction tensor for each k-point
-
-    friction_aimsout = params.friction_aimsout
-    friction_dirname = params.friction_dirname
-    n_spin = params.n_spin
-    sigma = params.sigma
-    temperature = params.temperature
-    friction_max_energy = params.friction_max_energy
-    perturbing_energies = params.perturbing_energies
-    fermi_mode = params.fermi_mode
-    expression = params.expression
-    n_jobs = params.n_jobs
-    
-
-    friction_indices = get_friction_indices(friction_aimsout)
-
-    n_atoms = get_number_of_atoms(friction_aimsout)
-    n_friction_atoms = len(friction_indices)
-    ndims = 3 * n_friction_atoms
-
-    n_k_points, k_weights = parse_kpoints_and_weights(friction_aimsout)
-    chem_pot, evs = parse_ev_data(friction_dirname)
-
-    for i_spin in range(n_spin):
-        results = Parallel(n_jobs=n_jobs)(
-            delayed(calculate_friction_tensor_for_k_point)(
-                i_k_point, i_spin, n_atoms, friction_indices, friction_dirname, evs, chem_pot, k_weights, sigma, temperature, friction_max_energy, perturbing_energies, n_spin, fermi_mode, expression
-            )
-            for i_k_point in range(n_k_points)
-        )
-
-        # Sum the results from all k-points
-        global_friction_tensor = np.sum(results, axis=0)
-
-    global_friction_tensor = global_friction_tensor * (eV_to_J / (Ang_to_m)**2)   #kg s-1
-    return global_friction_tensor
 
 def project_tensor(cartesian_tensor, modes):
 
