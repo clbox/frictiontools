@@ -94,7 +94,7 @@ def calculate_friction_tensor_for_k_point(i_k_point, i_spin, n_atoms, friction_i
                     )
                     local_friction_tensor[i_coord, j_coord, :] += friction[:]
 
-                    if i_coord > j_coord:
+                    if i_coord!=j_coord:
                         local_friction_tensor[j_coord, i_coord, :] += np.conj(friction[:])
 
     return local_friction_tensor

@@ -22,7 +22,7 @@ from frictiontools.properties import *
 if __name__ == "__main__":
     
 
-    normal_mode_filename = "vibrations/normal_modes"
+    normal_mode_filename = "vibrations/tighter/normal_modes"
     # Get hbar omega for each mode
     
     perturbing_energies = parse_perturbing_energies(normal_mode_filename)
@@ -78,9 +78,6 @@ if __name__ == "__main__":
 
 
 
-
-
-
     #  Processing the friction tensor
     friction_masses = system_properties.friction_masses
     relaxation_tensor = np.zeros_like(friction_tensor) # s-1
@@ -88,7 +85,10 @@ if __name__ == "__main__":
         relaxation_tensor[:,:,p] = mass_weight_tensor(friction_tensor[:,:,p], friction_masses)
     #np.save("mass-weighted_friction.npy", relaxation_tensor/1e12) # convert to ps-1
     plot_relaxation_rates(np.real(relaxation_tensor),perturbing_energies, output_pdf="cartesian_tensor.pdf", output_txt="cartesian_tensor.txt")
-    
+
+    print(np.real(relaxation_tensor[:,:,-1]))    
+
+
     projected_tensor = np.zeros_like(relaxation_tensor) # s-1
     for p, pe in enumerate(perturbing_energies):
         projected_tensor[:,:,p] = project_tensor(relaxation_tensor[:,:,p], modes)
